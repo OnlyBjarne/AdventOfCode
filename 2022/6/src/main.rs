@@ -39,6 +39,7 @@ Here are a few more examples:
 How many characters need to be processed before the first start-of-packet marker is detected?
  * */
 
+use std::fs::read;
 use std::time::Instant;
 use std::{collections::HashSet, fs::read_to_string};
 
@@ -51,45 +52,34 @@ fn main() {
         "zcfzfwzzqfrljwzlrfnpqdbhtmscgvjw",  // 11
     ];
 
-    assert_eq!(one(&values[0].to_string(), 4), 7, "First");
-    assert_eq!(one(&values[1].to_string(), 4), 5, "Second");
-    assert_eq!(one(&values[2].to_string(), 4), 6, "Third");
-    assert_eq!(one(&values[3].to_string(), 4), 10, "Fourth");
-    assert_eq!(one(&values[4].to_string(), 4), 11, "Fifth");
+    // assert_eq!(one(&values[0], 4), 7, "First");
+    // assert_eq!(one(&values[1].to_string(), 4), 5, "Second");
+    // assert_eq!(one(&values[2].to_string(), 4), 6, "Third");
+    // assert_eq!(one(&values[3].to_string(), 4), 10, "Fourth");
+    // assert_eq!(one(&values[4].to_string(), 4), 11, "Fifth");
 
-    let values = read_to_string("./input.txt").expect("Could not read file");
+    let values: Vec<u8> = read("./input.txt").expect("Could not read file");
 
     let start = Instant::now();
-    println!("One {}", one(&values, 4));
+    let res_one = one(&values, 4);
+    println!("One {}", &res_one);
+    assert_eq!(res_one, 1816);
     println!("One took: {:?}", start.elapsed());
 
     let start = Instant::now();
-    println!("Two {}", one(&values, 14));
+    let res_two = one(&values, 14);
+    assert_eq!(res_two, 2625);
+    println!("Two {}", &res_two);
     println!("Two took: {:?}", start.elapsed());
 }
 
-fn has_duplicates(values: Vec<char>) -> bool {
-    let mut existing = HashSet::new();
-    for value in values {
-        if !existing.insert(value) {
-            return true;
+fn one(input: &Vec<u8>, length: usize) -> usize {
+    let last_four = input.windows(length);
+    for (i, win) in last_four.enumerate() {
+        let mut check_dupes = HashSet::new();
+        if win.iter().all(|x| check_dupes.insert(x)) {
+            return i + length;
         }
     }
-    return false;
-}
-
-fn one(input: &String, length: usize) -> usize {
-    let mut last_four: Vec<char> = Vec::new();
-    for (i, c) in input.chars().enumerate() {
-        if last_four.len() < length {
-            last_four.push(c);
-        }
-        last_four[i % length] = c;
-
-        if last_four.len() == length && !has_duplicates(last_four.clone()) {
-            return i + 1;
-        }
-    }
-
     return 0;
 }
