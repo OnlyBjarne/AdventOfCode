@@ -23,26 +23,26 @@
 test_data_1 =
   "467..114..
 ...*......
-..35..633.
+...35..633
 ......#...
 617*......
 .....+.58.
 ..592.....
-......755.
-...$.*....
-.664.598.."
+.......755
+...$..*...
+.664...598"
 
-test_data_2 =
-  "467..114..
+test_data_2 = "
+467...114.
 ...*......
-..35..633.
+.35...633.
 ......#...
 617*......
 .....+.583
 #.592.....
 ......755.
-...$.*....
-.664.598.."
+..598*....
+.664......"
 
 # In this schematic, two numbers are not part numbers because they are not adjacent to a symbol: 114 (top right) and 58 (middle right). 
 # Every other number is adjacent to a symbol and so is a part number; their sum is 4361.
@@ -61,14 +61,18 @@ defmodule GearRatios do
 
   def is_touching(input_string, {index, length}, line_length, regex \\ ~r/[^.\d\n]/) do
     look_around(input_string, index, length, line_length)
-    |> Enum.any?(fn x -> String.match?(x, regex) end)
+    |> List.flatten()
+    |> Enum.dedup()
+    |> Enum.any?(fn pos ->
+      String.match?(String.slice(input_string, pos, 1), regex)
+    end)
   end
 
   def look_around(input_string, index, length, line_length) do
     new_length = length + 1
 
     minimum = 0
-    maximum = String.length(input_string)
+    maximum = String.length(input_string) - 1
 
     previous =
       Enum.max([minimum, index - 1 - line_length])..Enum.max([
@@ -85,11 +89,7 @@ defmodule GearRatios do
         index - 1 + line_length + new_length
       ])
 
-    [next, current, previous]
-    |> Enum.map(&Range.to_list(&1))
-    |> List.flatten()
-    |> Enum.sort()
-    |> Enum.dedup()
+    [Range.to_list(previous), Range.to_list(current), Range.to_list(next)]
   end
 
   def part1(input_string \\ @input) do
@@ -103,12 +103,8 @@ defmodule GearRatios do
       input_string
       |> find_location(@regex)
 
-    numbers
-    |> Enum.filter(fn {index, length} ->
-      look_around(input_string, index, length, line_length + 1)
-      |> Enum.any?(fn x ->
-        String.slice(input_string, x, 1) |> String.match?(~r/[^.\d\n]/)
-      end)
+    Enum.filter(numbers, fn x ->
+      is_touching(input_string, x, line_length + 1)
     end)
     |> Enum.reduce(
       0,
@@ -128,15 +124,53 @@ defmodule GearRatios do
     cogs =
       input_string
       |> find_location(~r/\*/)
-      |> Enum.filter(fn x -> is_touching(input_string, x, line_length + 1, ~r/\d+/) end)
+      |> Enum.filter(fn {index, _l} ->
+        touching =
+          look_around(input_string, index, 1, line_length)
+          |> Enum.map(fn x ->
+            [from, _, to] = x
 
-    numbers =
+            String.slice(input_string, from..to)
+          end)
+          |> Enum.join("\n")
+
+        scans = Regex.scan(~r/\d+/, touching)
+
+        count =
+          scans |> Enum.count()
+
+        count == 2
+      end)
+
+    # cogs is a list of locations of cogs with 2 touching numbers [{1,1},{19,0}]
+
+    numbers_with_range =
       input_string
       |> find_location(~r/\d+/)
-      |> Enum.filter(fn x -> is_touching(input_string, x, line_length, ~r/\*/) end)
+      |> Enum.filter(fn x ->
+        is_touching(input_string, x, line_length, ~r/\*/)
+      end)
+      |> Enum.map(fn {index, length} ->
+        [
+          String.to_integer(String.slice(input_string, index, length)),
+          look_around(input_string, index, length, line_length) |> List.flatten() |> Enum.dedup()
+        ]
+      end)
 
-    Enum.reduce(numbers, %{}, fn {index, length}, acc ->
-      nil
+    cogs
+    |> Enum.reduce(0, fn {index, _}, acc ->
+      [first, second] =
+        Enum.filter(numbers_with_range, fn [number, range] ->
+          if Enum.member?(range, index) do
+            true
+          else
+            false
+          end
+        end)
+        |> Enum.map(fn [n, _] -> n end)
+        |> IO.inspect()
+
+      acc + first * second
     end)
   end
 end
@@ -144,4 +178,11 @@ end
 # GearRatios.part1(test_data_2) |> IO.inspect()
 
 # (GearRatios.part1() == 554_003) |> IO.inspect(label: "part1")
-GearRatios.part2(test_data_1) |> IO.inspect(label: "part2")
+# GearRatios.part2(test_data_2 |> String.trim()) |> IO.inspect() |> (&IO.puts(&1 == 467_835)).()
+# GearRatios.part2() |> IO.inspect()
+
+_ = 14_758_247
+_ = 82_785_014
+# |> IO.inspect()
+
+# |> IO.inspect(label: "part2")
